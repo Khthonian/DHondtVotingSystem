@@ -1,62 +1,152 @@
 ﻿using System;
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 
-namespace DHondtVotingCalculator
+namespace dhondtVotingSystem
 {
-    class VoteCount
+    class Program
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
-            // Ask how many votes the Brexit Party won
-            
-            double BPVotes = 452321;
-            Console.WriteLine($"The Brexit Party won {BPVotes} votes");
+            // Ask the user to input the file path to the chosen data packet
+            Console.Write("Please input the file path to the chosen data: ");
+            string inputFileData = Console.ReadLine();
+            List<Party> parties = FindData(inputFileData);
 
-            // Ask how many votes the Liberal Democrats won
-            
-            double LDVotes = 203989;
-            Console.WriteLine($"The Liberal Democrats won {LDVotes} votes");
+            // Begin the calculations, according to the D'Hondt Method
+            var incumbent = accumIncumbent(inputFileData);
+            dhondtCalculations(parties, incumbent.Item2);
+            outputVictors(parties);
+            Console.ReadKey();
+        }
 
-            // Ask how many votes the Labour Party won
-            
-            double LPVotes = 164682;
-            Console.WriteLine($"The Labour Party won {LPVotes} votes");
+        private static List<Party> FindData(string exactpath)
+        {
+            // Extract the data from the file and assort the values in to a list
+            List<string> dataSource = File.ReadAllLines(exactpath).ToList();
+            List<Party> parties = new List<Party>();
+            foreach (string line in dataSource.Skip(3))
+            {
+                string[] dataParts = line.Split(',');
+                Party p = new Party(dataParts[0], Convert.ToInt32(dataParts[1]), dataParts.Skip(2).ToArray());
+                parties.Add(p);
+            }
+            return parties;
+        }
 
-            // Ask how many votes the Conservative Party won
-            
-            double CPVotes = 126138;
-            Console.WriteLine($"The Conservative Party won {CPVotes} votes");
+        // Print out the seat winners to the console
+        private static void outputVictors(List<Party> parties)
+        {
+            foreach (Party p in parties)
+            {
+                if (p.seatScore > 0)
+                {
+                    Console.WriteLine(p);
+                }
+            }
+        }
 
-            // Ask how many votes the Green Party won
-            
-            double GPVotes = 124630;
-            Console.WriteLine($"The Green Party won {GPVotes} votes");
+        // Describe total votes for each party and calculate the number of seats to be awarded to each party
+        private static (int, int) accumIncumbent(string exactpath)
+        {
+            List<string> dataSource = File.ReadAllLines(exactpath).ToList();
+            int totalVoteTally = Convert.ToInt32(dataSource[2]);
+            int seatsAwarded = Convert.ToInt32(dataSource[1]);
 
-            // Ask how many votes UKIP won
-            
-            double UKIPVotes = 58198;
-            Console.WriteLine($"UKIP won {UKIPVotes} votes");
+            return (totalVoteTally, seatsAwarded);
+        }
+          
+        // Function to perform the calculations according to the D'Hondt method
+        private static void dhondtCalculations(List<Party> parties, int seatsElected)
+        {
+            // Describe the first party to hold the most votes in the election
+            Party greatestVotes = parties.Aggregate((v1, v2) => v1.voteTally > v2.voteTally ? v1 : v2);
+            greatestVotes.seatScore += 1;
+            greatestVotes.dhondtCalculation();
 
-            // Ask how many votes Change UK won
-            
-            double CUKVotes = 41117;
-            Console.WriteLine($"Change UK won {CUKVotes} votes");
+            // Continue the loop until all possible incumbents have been elected
+            int totalSeatsElected = 0;
+            while (totalSeatsElected != seatsElected)
+            {
+                // If the amount of seats has not been reached, the progrram will reset the variable
+                totalSeatsElected = 0;
 
-            // Ask how many votes the Independent Network won
-            
-            double IKVotes = 7641;
-            Console.WriteLine($"The Independent Network won {IKVotes} votes");
+                Party maxVotes = parties.Aggregate((v1, v2) => v1.changedVotes > v2.changedVotes ? v1 : v2);
+                maxVotes.seatScore += 1;
+                maxVotes.dhondtCalculation();
 
-            // Ask how many votes the Independents won
-            
-            double IVotes = 4511;
-            Console.WriteLine($"The Independents won {IVotes} votes");
+                foreach (Party p in parties)
+                {
+                    totalSeatsElected += p.seatScore;
+                }
+            }
+            Console.WriteLine($"\nThe {seatsElected} seats that were awarded are:");
         }
     }
-    class VoteCalculation
+
+    class Party
     {
-        public static void Main(string[] args)
+        // Fields
+        private string partyName = "unknown";
+        private int countedVotes;
+        private string[] _seatsCodeValues;
+        private int _changedVotes;
+        private int _seatScore;
+
+        // Properties 
+        public string partyTitle
         {
-            // Create a array
+            get { return partyName; }
+            private set { partyName = value; }
+        }
+
+        public int voteTally
+        {
+            get { return countedVotes; }
+            private set { countedVotes = value; }
+        }
+
+        public string[] SeatsCodeValues
+        {
+            get { return _seatsCodeValues; }
+            private set { _seatsCodeValues = value; }
+        }
+
+        public int changedVotes
+        {
+            get { return _changedVotes; }
+            private set { _changedVotes = value; }
+        }
+
+        public int seatScore
+        {
+            get { return _seatScore; }
+            set { _seatScore = value; }
+        }
+
+        // Construct the party properties 
+        public Party(string name, int votes, string[] seatsCodeValues)
+        {
+            partyTitle = name;
+            voteTally = votes;
+            changedVotes = votes;
+            SeatsCodeValues = seatsCodeValues;
+        }
+
+        // Returns percentage of votes for your party
+        public double PercentOfVotes(double totalVotes) => (voteTally / totalVotes) * 100;
+
+        public override string ToString()
+        {
+            return $"Name: {partyName}, Votes: {voteTally}, {seatScore} " +
+                   $"Seats Values : {string.Join(",", SeatsCodeValues.Take(seatScore))}";
+        }
+
+        // Applies D'Hondt method of division 
+        public void dhondtCalculation()
+        {
+            changedVotes = voteTally / (1 + seatScore);
         }
     }
 }
