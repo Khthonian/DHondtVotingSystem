@@ -12,35 +12,35 @@ namespace dhondtVotingSystem
             // Ask the user to input the file path to the chosen data packet
             Console.Write("Please input the file path to the chosen data: ");
             string inputFileData = Console.ReadLine();
-            List<Party> parties = FindData(inputFileData);
+            List<Incumbent> parties = FindData(inputFileData);
 
             // Begin the calculations, according to the D'Hondt Method
-            var incumbent = accumIncumbent(inputFileData);
-            dhondtCalculations(parties, incumbent.Item2);
-            outputVictors(parties);
+            var incumbent = AccumIncumbent(inputFileData);
+            DhondtCalculations(parties, incumbent.Item2);
+            OutputVictors(parties);
             Console.ReadKey();
         }
 
-        private static List<Party> FindData(string exactpath)
+        private static List<Incumbent> FindData(string exactpath)
         {
             // Extract the data from the file and assort the values in to a list
             List<string> dataSource = File.ReadAllLines(exactpath).ToList();
-            List<Party> parties = new List<Party>();
+            List<Incumbent> parties = new List<Incumbent>();
             foreach (string line in dataSource.Skip(3))
             {
                 string[] dataParts = line.Split(',');
-                Party p = new Party(dataParts[0], Convert.ToInt32(dataParts[1]), dataParts.Skip(2).ToArray());
+                Incumbent p = new Incumbent(dataParts[0], Convert.ToInt32(dataParts[1]), dataParts.Skip(2).ToArray());
                 parties.Add(p);
             }
             return parties;
         }
 
         // Print out the seat winners to the console
-        private static void outputVictors(List<Party> parties)
+        private static void OutputVictors(List<Incumbent> parties)
         {
-            foreach (Party p in parties)
+            foreach (Incumbent p in parties)
             {
-                if (p.seatScore > 0)
+                if (p.SeatScore > 0)
                 {
                     Console.WriteLine(p);
                 }
@@ -48,7 +48,7 @@ namespace dhondtVotingSystem
         }
 
         // Describe total votes for each party and calculate the number of seats to be awarded to each party
-        private static (int, int) accumIncumbent(string exactpath)
+        private static (int, int) AccumIncumbent(string exactpath)
         {
             List<string> dataSource = File.ReadAllLines(exactpath).ToList();
             int totalVoteTally = Convert.ToInt32(dataSource[2]);
@@ -58,12 +58,12 @@ namespace dhondtVotingSystem
         }
           
         // Function to perform the calculations according to the D'Hondt method
-        private static void dhondtCalculations(List<Party> parties, int seatsElected)
+        private static void DhondtCalculations(List<Incumbent> parties, int seatsElected)
         {
             // Describe the first party to hold the most votes in the election
-            Party greatestVotes = parties.Aggregate((v1, v2) => v1.voteTally > v2.voteTally ? v1 : v2);
-            greatestVotes.seatScore += 1;
-            greatestVotes.dhondtCalculation();
+            Incumbent greatestVotes = parties.Aggregate((v1, v2) => v1.VoteTally > v2.VoteTally ? v1 : v2);
+            greatestVotes.SeatScore += 1;
+            greatestVotes.DhondtCalculation();
 
             // Continue the loop until all possible incumbents have been elected
             int totalSeatsElected = 0;
@@ -72,20 +72,20 @@ namespace dhondtVotingSystem
                 // If the amount of seats has not been reached, the progrram will reset the variable
                 totalSeatsElected = 0;
 
-                Party maxVotes = parties.Aggregate((v1, v2) => v1.changedVotes > v2.changedVotes ? v1 : v2);
-                maxVotes.seatScore += 1;
-                maxVotes.dhondtCalculation();
+                Incumbent maxVotes = parties.Aggregate((v1, v2) => v1.ChangedVotes > v2.ChangedVotes ? v1 : v2);
+                maxVotes.SeatScore += 1;
+                maxVotes.DhondtCalculation();
 
-                foreach (Party p in parties)
+                foreach (Incumbent p in parties)
                 {
-                    totalSeatsElected += p.seatScore;
+                    totalSeatsElected += p.SeatScore;
                 }
             }
             Console.WriteLine($"\nThe {seatsElected} seats that were awarded are:");
         }
     }
 
-    class Party
+    class Incumbent
     {
         // Fields
         private string partyName = "unknown";
@@ -94,14 +94,20 @@ namespace dhondtVotingSystem
         private int _changedVotes;
         private int _seatScore;
 
+        // Applies D'Hondt method of division 
+        public void DhondtCalculation()
+        {
+            ChangedVotes = VoteTally / (1 + SeatScore);
+        }
+
         // Properties 
-        public string partyTitle
+        public string PartyTitle
         {
             get { return partyName; }
             private set { partyName = value; }
         }
 
-        public int voteTally
+        public int VoteTally
         {
             get { return countedVotes; }
             private set { countedVotes = value; }
@@ -113,40 +119,36 @@ namespace dhondtVotingSystem
             private set { _seatsCodeValues = value; }
         }
 
-        public int changedVotes
+        public int ChangedVotes
         {
             get { return _changedVotes; }
             private set { _changedVotes = value; }
         }
 
-        public int seatScore
+        public int SeatScore
         {
             get { return _seatScore; }
             set { _seatScore = value; }
         }
 
         // Construct the party properties 
-        public Party(string name, int votes, string[] seatsCodeValues)
+        public Incumbent(string name, int votes, string[] seatsCodeValues)
         {
-            partyTitle = name;
-            voteTally = votes;
-            changedVotes = votes;
+            PartyTitle = name;
+            VoteTally = votes;
+            ChangedVotes = votes;
             SeatsCodeValues = seatsCodeValues;
         }
 
         // Returns percentage of votes for your party
-        public double PercentOfVotes(double totalVotes) => (voteTally / totalVotes) * 100;
+        public double PercentOfVotes(double totalVotes) => (VoteTally / totalVotes) * 100;
 
         public override string ToString()
         {
-            return $"Name: {partyName}, Votes: {voteTally}, {seatScore} " +
-                   $"Seats Values : {string.Join(",", SeatsCodeValues.Take(seatScore))}";
+            return $"Name: {partyName}, Votes: {VoteTally}, {SeatScore} " +
+                   $"Seats Values : {string.Join(",", SeatsCodeValues.Take(SeatScore))}";
         }
-
-        // Applies D'Hondt method of division 
-        public void dhondtCalculation()
-        {
-            changedVotes = voteTally / (1 + seatScore);
-        }
+              
+       
     }
 }
